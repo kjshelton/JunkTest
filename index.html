@@ -1,0 +1,203 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Jazzy</title>
+    <style>
+		body {
+			overflow	: hidden;
+			padding		: 0;
+			margin		: 0;
+			background-color: #BBB;
+			/*background-size: 100%;*/
+			background	: center no-repeat;
+		}
+		#info {
+			position	: absolute;
+			top		    : 0px;
+			width		: 100%;
+			padding   	: 5px;
+			text-align  	: center;
+		}
+		#info a {
+			color   	: #66F;
+			text-decoration : none;
+		}
+		#info a:hover {
+			text-decoration : underline;
+		}
+		#container {
+			width   	: 100%;
+			height    	: 100%;
+			overflow  	: hidden;
+			padding   	: 0;
+			margin    	: 0;
+			-webkit-user-select : none;
+			-moz-user-select  : none;
+		}
+    </style>
+  <!-- jQuery and jQuery Mobile 
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.css" />
+    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.3.1/jquery.mobile-1.3.1.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+ -->
+
+    <link rel="stylesheet" href="jquery.mobile-1.3.2.min.css" />
+    <script src="jquery-1.9.1.min.js"></script>
+    <script src="jquery.mobile-1.3.2.min.js"></script> 
+ 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/virtualjoystick.js/virtualjoystick.js"></script>
+
+    <script>
+      var url = document.URL;
+      var socket = io.connect(url,{'connect timeout': 1000});
+      
+      // on connection to server
+      socket.on('connect', function(){
+           socket.on('status', function (message) {
+//              $('#status').append($('<li></li>').text(message));
+              $('#status').html($('<p>').text("Status: "+ message));
+          });
+      });
+
+      // on load of page
+      $(function(){
+        $('body').css('background-image', '+ url +');
+
+        console.log("touchscreen is", VirtualJoystick.touchScreenAvailable() ? "available" : "not available");
+        var joystickRight  = new VirtualJoystick({
+          	container : document.getElementById('container'),
+	  	    strokeStyle: 'cyan',
+          	mouseSupport  : true,
+		    limitStickTravel: true,
+		    stickRadius	: 150		
+        });
+        
+	    joystickRight.addEventListener('touchStartValidation', function(event){
+		    var touch	= event.changedTouches[0];
+		    if( touch.pageX < window.innerWidth/2 )	return false;
+		    return true
+	    });
+
+        var joystickLeft  = new VirtualJoystick({
+          	container : document.getElementById('container'),
+	  	    strokeStyle: 'orange',
+          	mouseSupport  : false,
+		    limitStickTravel: true,
+		    stickRadius	: 150		
+        });
+        
+    	joystickLeft.addEventListener('touchStartValidation', function(event){
+    		var touch	= event.changedTouches[0];
+    		if( touch.pageX >= window.innerWidth/2 )	return false;
+    		return true
+    	});
+        var dataLeft = false;
+        var dataRight = false;
+
+        setInterval(function(){
+          //console.log(data);
+          // Grab the latest camera image
+          //var random = Math.floor(Math.random() * Math.pow(2, 31));
+          //var image_url = url + 'camera?' + random;
+          //$('#camera').attr('src', image_url);
+          //$('body').css('background-image', 'url('+ image_url +')');
+
+          // Socket emit an updated joystick position
+            new_dataRight = {'dxr': joystickRight.deltaX(), 'dyr': joystickRight.deltaY()};
+            if (new_dataRight.dxr != dataRight.dxr || 
+    	        new_dataRight.dyr != dataRight.dyr ) {
+              dataRight = new_dataRight;
+              socket.emit('updateMotion', dataRight);
+              //console.log(data);
+              //$('#result').html('<b>Result:</b> ' . message);
+            }
+            
+            new_dataLeft = {'dxl': joystickLeft.deltaX(),  'dyl': joystickLeft.deltaY()};
+            if (new_dataLeft.dxl != dataLeft.dxl || 
+		        new_dataLeft.dyl != dataLeft.dyl) {
+              dataLeft = new_dataLeft;
+              socket.emit('updateServo', dataLeft);
+              //console.log(data);
+              //$('#result').html('<b>Result:</b> ' . message);
+            }
+
+        }, 1/30 * 1000);
+        
+        setInterval(function(){
+              socket.emit('heartbeat');
+        }, 1000); // once a second interval
+        
+      });  // end of main function
+      
+    function panUpdate(value){
+      socket.emit('panUpdate', value);
+    }
+    function tiltUpdate(value){
+      socket.emit('tiltUpdate', value);
+    }
+    function powerSwitch(sel){
+      socket.emit('powerSwitch');
+    }
+    function speedButton(sel) {
+        socket.emit('speedButton');
+    }
+    function shutdownButton(sel) {
+        socket.emit('shutdownButton');
+    }
+
+    </script>
+
+
+  </head>
+
+  <body>
+  <!-- Home -->
+  <div data-role="page" id="page1">
+
+    <div data-role="collapsible" data-theme="b" data-content-theme="b" data-iconpos="top">
+        <h1>Jazzy BeagleBone Black Robot</h1>
+        <div data-role="fieldcontain">
+            <input id="Button1" type="button" class="ui-corner-all" data-inline="true" value="Power" onclick="powerSwitch(this);" />
+            <input id="Button2" type="button" class="ui-corner-all" data-inline="true" value="Speed" onclick="speedButton();" />
+            <a href="#popupDialog" data-rel="popup" data-position-to="window" data-role="button" data-theme="b" data-inline="true" data-transition="pop">Shutdown</a>
+        </div>
+        <div data-role="fieldcontain">
+              <label for="slider1">
+                   Pan
+              </label>
+              <input id="slider1" type="range" name="slider2" value="1100" min="500" max="2000"
+                data-highlight="false" data-theme="b" onChange="panUpdate(value);">
+        </div>
+        <div data-role="fieldcontain">
+              <label for="slider2">
+                  Tilt
+              </label>
+              <input id="slider2" type="range" name="slider2" value="1100" min="500" max="2000"
+               data-highlight="false" data-theme="b" onChange="tiltUpdate(value);">
+        </div>
+        <!-- The Status Messages -->
+        <ul id="status"></ul>
+    </div>
+    <!-- ------------------------- Dialog Popup to shutdown Beaglebone  ----------------------- -->
+    <div data-role="popup" id="popupDialog" data-overlay-theme="a" data-theme="c" style="max-width:400px;" class="ui-corner-all">
+		<div data-role="header" data-theme="a" class="ui-corner-top">
+			<h1>Shutdown?</h1>
+		</div>
+		<div data-role="content" data-theme="d" class="ui-corner-bottom ui-content">
+			<h3 class="ui-title">Are you sure you want to shutdown the Beaglebone?</h3>
+			<p>This action cannot be undone.</p>
+			<a href="#" data-role="button" data-inline="true" data-rel="back" data-theme="c">Cancel</a>    
+			<a href="#" data-role="button" data-inline="true" data-rel="back" data-transition="flow" data-theme="b" onclick="shutdownButton();">Yes</a>  
+		</div>
+	</div>
+  </div>
+  <div id="container"></div>
+ 
+  </body>
+</html>
